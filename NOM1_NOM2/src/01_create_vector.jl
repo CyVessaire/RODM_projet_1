@@ -1,5 +1,6 @@
 using JuMP
 using CPLEX
+using StatsBase
 
 # Contains:
 # - d: the number of features
@@ -8,50 +9,180 @@ using CPLEX
 # - transactionClass: class of the transactions
 include("../data/haberman.data")
 
+max_number_features_for_age = 10
+max_number_features_for_year = 10
+max_number_features_for_nodule = 10
+
 #t = [30 64 1 1;30 62 3 1;30 65 0 2;]
 t = readdlm("../data/haberman.data", ',')
 
 Size_testing_set = round(Int,size(t,1)/3)
 
-training_data = falses(Size_testing_set,9+1)
-testing_data = falses(size(t,1)-Size_testing_set,9+1)
+age_map_count = countmap(t[:,1])
+year_map_count = countmap(t[:,2])
+nodule_map_count = countmap(t[:,3])
 
-max_age = maximum(t[:,1])
-min_age = minimum(t[:,1])
-max_date = maximum(t[:,2])
-min_date = minimum(t[:,2])
-max_nodule = maximum(t[:,3])
-min_nodule = minimum(t[:,3])
+#println(age_map_count)
+#println(year_map_count)
+#println(nodule_map_count)
+
+age_map = collect(age_map_count)
+#println(age_map)
+sort!(age_map)
+#println(age_map)
+#println(age_map[1])
+#println(age_map[2][2])
+year_map = collect(year_map_count)
+sort!(year_map)
+nodule_map = collect(nodule_map_count)
+sort!(nodule_map)
+
+#println(size(year_map,1))
+
+if size(year_map,1) > max_number_features_for_year
+    year_value = zeros(max_number_features_for_year-1)
+    count_fraction_passed = 0
+    count_total_passed = 0
+    for i = 1:size(year_map,1)
+        count_total_passed += year_map[i][2]
+        if count_total_passed > (count_fraction_passed+1)/max_number_features_for_year*size(t,1)
+            count_fraction_passed += 1
+            year_value[count_fraction_passed] = year_map[i][1]
+        elseif size(year_map,1) - i == max_number_features_for_year - 1 - count_fraction_passed - 1
+            count_fraction_passed += 1
+            year_value[count_fraction_passed] = year_map[i][1]
+        end
+    end
+else
+    year_value = zeros(size(year_map,1))
+    for i = 1:size(year_map,1)
+        year_value[i] = year_map[i][1]
+    end
+end
+
+if size(nodule_map,1) > max_number_features_for_nodule
+    nodule_value = zeros(max_number_features_for_nodule-1)
+    count_fraction_passed = 0
+    count_total_passed = 0
+    for i = 1:size(nodule_map,1)
+        count_total_passed += nodule_map[i][2]
+        if count_total_passed > (count_fraction_passed+1)/max_number_features_for_nodule*size(t,1)
+            count_fraction_passed += 1
+            nodule_value[count_fraction_passed] = nodule_map[i][1]
+        elseif size(nodule_map,1) - i == max_number_features_for_nodule - 1 - count_fraction_passed - 1
+            count_fraction_passed += 1
+            nodule_value[count_fraction_passed] = nodule_map[i][1]
+        end
+    end
+else
+    nodule_value = zeros(size(nodule_map,1))
+    for i = 1:size(nodule_map,1)
+        nodule_value[i] = nodule_map[i][1]
+    end
+end
+
+if size(age_map,1) > max_number_features_for_age
+    age_value = zeros(max_number_features_for_age-1)
+    count_fraction_passed = 0
+    count_total_passed = 0
+    for i = 1:size(age_map,1)
+        count_total_passed += age_map[i][2]
+        if count_total_passed > (count_fraction_passed+1)/max_number_features_for_age*size(t,1)
+            count_fraction_passed += 1
+            age_value[count_fraction_passed] = age_map[i][1]
+        elseif size(age_map,1) - i == max_number_features_for_age - 1 - count_fraction_passed - 1
+            count_fraction_passed += 1
+            age_value[count_fraction_passed] = age_map[i][1]
+        end
+    end
+else
+    age_value = zeros(size(age_map,1))
+    for i = 1:size(age_map,1)
+        age_value[i] = age_map[i][1]
+    end
+end
+
+#println(year_map)
+#println(year_value)
+#println(nodule_map)
+#println(nodule_value)
+#println(age_map)
+#println(age_value)
+
+training_data = falses(Size_testing_set,size(year_value,1)+size(nodule_value,1)+size(age_value,1)+1)
+testing_data = falses(size(t,1)-size(training_data,1),size(training_data,2))
+
+
+#max_age = maximum(t[:,1])
+#min_age = minimum(t[:,1])
+#max_date = maximum(t[:,2])
+#min_date = minimum(t[:,2])
+#max_nodule = maximum(t[:,3])
+#min_nodule = minimum(t[:,3])
 
 # create training_data
 for i = 1:Size_testing_set
-    training_data[i,1] = (t[i,1] < (max_age-min_age)/3 + min_age)
-    training_data[i,2] = ((max_age-min_age)/3 + min_age <= t[i,1] < 2*(max_age-min_age)/3 + min_age)
-    training_data[i,3] = (t[i,1] >= 2*(max_age-min_age)/3 + min_age)
-    training_data[i,4] = (t[i,2] < (max_date-min_date)/3 + min_date)
-    training_data[i,5] = ((max_date-min_date)/3 + min_date <= t[i,2] < 2*(max_date-min_date)/3 + min_date)
-    training_data[i,6] = (t[i,2] >= 2*(max_date-min_date)/3 + min_date)
-    training_data[i,7] = (t[i,3] < (max_nodule-min_nodule)/3 + min_nodule)
-    training_data[i,8] = ((max_nodule-min_nodule)/3 + min_nodule <= t[i,3] < 2*(max_nodule-min_nodule)/3 + min_nodule)
-    training_data[i,9] = (t[i,3] >= 2*(max_nodule-min_nodule)/3 + min_nodule)
-    training_data[i,10] = (t[i,4]-1)
+    s = 0
+    for j = 1:size(age_value,1)
+        if t[i,1] >= age_value[j]
+            s = j
+        end
+    end
+    training_data[i,s+1] = true
+
+    s = 0
+    for j = 1:size(year_value,1)
+        if t[i,2] >= year_value[j]
+            s = j
+        end
+    end
+
+    training_data[i,size(age_value,1)+s+1] = true
+
+    s = 0
+    for j = 1:size(nodule_value,1)
+        if t[i,3] >= nodule_value[j]
+            s = j
+        end
+    end
+
+    training_data[i,size(age_value,1)+size(year_value,1)+s+1] = true
+
+    training_data[i,size(training_data,2)] = (t[i,4]-1)
 end
 
 # create testing_data
 for i = (Size_testing_set+1):size(t,1)
-    testing_data[i-Size_testing_set,1] = (t[i,1] < (max_age-min_age)/3 + min_age)
-    testing_data[i-Size_testing_set,2] = ((max_age-min_age)/3 + min_age <= t[i,1] < 2*(max_age-min_age)/3 + min_age)
-    testing_data[i-Size_testing_set,3] = (t[i,1] >= 2*(max_age-min_age)/3 + min_age)
-    testing_data[i-Size_testing_set,4] = (t[i,2] < (max_date-min_date)/3 + min_date)
-    testing_data[i-Size_testing_set,5] = ((max_date-min_date)/3 + min_date <= t[i,2] < 2*(max_date-min_date)/3 + min_date)
-    testing_data[i-Size_testing_set,6] = (t[i,2] >= 2*(max_date-min_date)/3 + min_date)
-    testing_data[i-Size_testing_set,7] = (t[i,3] < (max_nodule-min_nodule)/3 + min_nodule)
-    testing_data[i-Size_testing_set,8] = ((max_nodule-min_nodule)/3 + min_nodule <= t[i,3] < 2*(max_nodule-min_nodule)/3 + min_nodule)
-    testing_data[i-Size_testing_set,9] = (t[i,3] >= 2*(max_nodule-min_nodule)/3 + min_nodule)
-    testing_data[i-Size_testing_set,10] = (t[i,4]-1)
+    s = 0
+    for j = 1:size(age_value,1)
+        if t[i,1] >= age_value[j]
+            s = j
+        end
+    end
+    testing_data[i-Size_testing_set,s+1] = true
+
+    s = 0
+    for j = 1:size(year_value,1)
+        if t[i,2] >= year_value[j]
+            s = j
+        end
+    end
+
+    testing_data[i-Size_testing_set,size(age_value,1)+s+1] = true
+
+    s = 0
+    for j = 1:size(nodule_value,1)
+        if t[i,3] >= nodule_value[j]
+            s = j
+        end
+    end
+
+    testing_data[i-Size_testing_set,size(age_value,1)+size(year_value,1)+s+1] = true
+
+    testing_data[i-Size_testing_set,size(testing_data,2)] = (t[i,4]-1)
 end
 
-@show training_data
+#@show training_data
 
 open("../data/haberman_train.data", "w") do io
     writedlm(io, training_data, ',')
