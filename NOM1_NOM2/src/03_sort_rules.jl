@@ -16,8 +16,8 @@ include("../data/haberman_train.dat")
 include("../res/haberman_rules.dat")
 
 # Add the two null rules
-rules = [rules; zeros(2, d)]
-ruleClass = [ruleClass 1 2]
+# rules = [rules; zeros(2, d)]
+# ruleClass = [ruleClass 0 1]
 
 # Number of rules
 L = size(rules)[1]
@@ -45,7 +45,7 @@ for i in 1:n
             if transactionClass[i] == ruleClass[l]
                 p[i,l] = 1
             else
-                p[i, l] = -1 
+                p[i, l] = -1
             end
         end
     end
@@ -96,7 +96,7 @@ rB = r[L]
 
 # Relaxation improvement
 @constraint(m, [i in 1:n, l in 1:L], u[i, l] >= 1 - g[i] + v[i, l] * r[l])
-@constraint(m, [i in 1:n, l in 1:L], u[i, l] <= v[i, l]) 
+@constraint(m, [i in 1:n, l in 1:L], u[i, l] <= v[i, l])
 
 # r constraints
 @constraint(m, [k in 1:L], sum(s[l, k] for l in 1:L) == 1)
