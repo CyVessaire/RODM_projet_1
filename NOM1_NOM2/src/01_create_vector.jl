@@ -9,14 +9,14 @@ using StatsBase
 # - transactionClass: class of the transactions
 include("../data/haberman.data")
 
-max_number_features_for_age = 10
-max_number_features_for_year = 10
-max_number_features_for_nodule = 10
+max_number_features_for_age = 5
+max_number_features_for_year = 5
+max_number_features_for_nodule = 5
 
 #t = [30 64 1 1;30 62 3 1;30 65 0 2;]
 t = readdlm("../data/haberman.data", ',')
 
-Size_testing_set = round(Int,size(t,1)/3)
+Size_testing_set = round(Int,2*size(t,1)/3)
 
 age_map_count = countmap(t[:,1])
 year_map_count = countmap(t[:,2])
@@ -109,8 +109,10 @@ end
 #println(age_map)
 #println(age_value)
 
-training_data = falses(Size_testing_set,size(year_value,1)+size(nodule_value,1)+size(age_value,1)+1)
-testing_data = falses(size(t,1)-size(training_data,1),size(training_data,2))
+t = t[shuffle(1:end), :]
+
+training_data = zeros(Int,Size_testing_set,size(year_value,1)+size(nodule_value,1)+size(age_value,1)+1)
+testing_data = zeros(Int,size(t,1)-size(training_data,1),size(training_data,2))
 
 
 #max_age = maximum(t[:,1])
@@ -128,7 +130,7 @@ for i = 1:Size_testing_set
             s = j
         end
     end
-    training_data[i,s+1] = true
+    training_data[i,s+1] = 1
 
     s = 0
     for j = 1:size(year_value,1)
@@ -137,7 +139,7 @@ for i = 1:Size_testing_set
         end
     end
 
-    training_data[i,size(age_value,1)+s+1] = true
+    training_data[i,size(age_value,1)+s+1] = 1
 
     s = 0
     for j = 1:size(nodule_value,1)
@@ -146,7 +148,7 @@ for i = 1:Size_testing_set
         end
     end
 
-    training_data[i,size(age_value,1)+size(year_value,1)+s+1] = true
+    training_data[i,size(age_value,1)+size(year_value,1)+s+1] = 1
 
     training_data[i,size(training_data,2)] = (t[i,4]-1)
 end
@@ -159,7 +161,7 @@ for i = (Size_testing_set+1):size(t,1)
             s = j
         end
     end
-    testing_data[i-Size_testing_set,s+1] = true
+    testing_data[i-Size_testing_set,s+1] = 1
 
     s = 0
     for j = 1:size(year_value,1)
@@ -168,7 +170,7 @@ for i = (Size_testing_set+1):size(t,1)
         end
     end
 
-    testing_data[i-Size_testing_set,size(age_value,1)+s+1] = true
+    testing_data[i-Size_testing_set,size(age_value,1)+s+1] = 1
 
     s = 0
     for j = 1:size(nodule_value,1)
@@ -177,17 +179,31 @@ for i = (Size_testing_set+1):size(t,1)
         end
     end
 
-    testing_data[i-Size_testing_set,size(age_value,1)+size(year_value,1)+s+1] = true
+    testing_data[i-Size_testing_set,size(age_value,1)+size(year_value,1)+s+1] = 1
 
     testing_data[i-Size_testing_set,size(testing_data,2)] = (t[i,4]-1)
 end
 
 #@show training_data
 
-open("../data/haberman_train.data", "w") do io
-    writedlm(io, training_data, ',')
-end
+d = size(training_data, 2)-1
+n = size(training_data, 1)
+t = training_data[:,1:end-1]
+transactionClass = transpose(training_data[:,end])
 
-open("../data/haberman_test.data", "w") do io
-    writedlm(io, testing_data, ',')
-end
+fout = open("../data/haberman_train.dat", "w")
+println(fout, "d = ", d)
+println(fout, "n = ", n)
+println(fout, "t = ", t)
+println(fout, "transactionClass = ", transactionClass)
+
+d = size(testing_data, 2)-1
+n = size(testing_data, 1)
+t = testing_data[:,1:end-1]
+transactionClass = transpose(testing_data[:,end])
+
+fout = open("../data/haberman_test.dat", "w")
+println(fout, "d = ", d)
+println(fout, "n = ", n)
+println(fout, "t = ", t)
+println(fout, "transactionClass = ", transactionClass)

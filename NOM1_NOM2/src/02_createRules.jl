@@ -6,15 +6,9 @@ using CPLEX
 # - n: the number of transactions in the training set
 # - t: the transactions in the training set (each line is a transaction)
 # - transactionClass: class of the transactions
-include("../data/haberman_train.data")
+include("../data/haberman_train.dat")
 
 #t = [30 64 1 1;30 62 3 1;30 65 0 2;]
-training_data = readdlm("../data/haberman_train.data", ',', Bool)
-
-@show training_data
-
-n = size(training_data,1)
-d = size(training_data,2)-1
 mincovy = 0.05
 iterlim = 5
 RgenX = 0.1 / n
@@ -26,15 +20,16 @@ model = Model(solver = CplexSolver())
 @variable(model, 0<=x[i in 1:n]<=1)
 @variable(model, b[i in 1:d], Bin)
 
-@objective(model,Max,sum(x[i] for i in 1:n if training_data[i,d+1]==0) + RgenX * sum(x[i] for i in 1:n) - RgenB * sum(b[i] for i in 1:d))
+@objective(model,Max,sum(x[i] for i in 1:n if transactionClass[i]==0) + RgenX * sum(x[i] for i in 1:n) - RgenB * sum(b[i] for i in 1:d))
 
 @constraint(model, coverConstraint, sum(x[i] for i in 1:n) <= s_x)
-@constraint(model, [i = 1:n, j = 1:d], x[i] <= 1 + (training_data[i,j] -1) *b[j])
-@constraint(model, [i = 1:n], x[i] >= 1 + sum((training_data[i,j] -1) * b[j] for j in 1:d))
+@constraint(model, [i = 1:n, j = 1:d], x[i] <= 1 + (t[i,j] -1) *b[j])
+@constraint(model, [i = 1:n], x[i] >= 1 + sum((t[i,j] -1) * b[j] for j in 1:d))
 @constraint(model, sum(x[i] for i in 1:n) <= s_x)
 @constraint(model, sum(x[i] for i in 1:n) <= s_x)
 
-R=[]
+R = []
+RuleClass = []
 
 for C = [false, true]
     s = 0
@@ -42,7 +37,7 @@ for C = [false, true]
     s_x = n
     R1 = []
     while(s_x > n * mincovy)
-        @objective(model,Max,sum(x[i] for i in 1:n if training_data[i,d+1]==C) + RgenX * sum(x[i] for i in 1:n) - RgenB * sum(b[i] for i in 1:d))
+        @objective(model,Max,sum(x[i] for i in 1:n if transactionClass[i]==C) + RgenX * sum(x[i] for i in 1:n) - RgenB * sum(b[i] for i in 1:d))
         JuMP.setRHS(coverConstraint, s_x)
         if iter == 1
             solve(model)
@@ -70,7 +65,13 @@ for C = [false, true]
             iter = 1
         end
     end
-    append!(R,R1)
+    R = [R;R1]
+    append!(RuleClass, C)
 end
 
 @show R
+
+fout = open("../res/haberman_rules.dat", "w")
+println(fout, "rules = ", R)
+println(fout, "ruleClass = ", )
+end
